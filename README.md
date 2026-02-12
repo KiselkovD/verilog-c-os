@@ -1,9 +1,26 @@
-Majority of code is taken from library:
-https://github.com/ultraembedded/riscv
+This is a project which aims to run simulation of C programs on RISC-V architecture with ISA and Verilog support in the simplest possible way.
 
-## Dependencies
+Project inherits from https://github.com/ultraembedded/riscv library. We made several updates to the API to support newer versions of Verilator, and we made changes to the test bench to support extensive Verilog logs on CPU instruction execution.
 
-The following dependencies are required to run the RISC-V simulation environment:
+## Quick Start with Docker Compose
+
+The simplest way to run this project is using Docker Compose, which handles all dependencies automatically:
+
+To run the run_c example:
+```bash
+docker compose up run_c
+```
+
+To run the xv6 example:
+```bash
+docker compose up xv6
+```
+
+These commands will build the Docker image with all necessary dependencies and run the respective examples in containers.
+
+## Dependencies (Manual Installation)
+
+If you prefer to run the project manually without Docker, the following dependencies are required:
 
 ### Build Dependencies
 - **RISC-V GCC Toolchain**: `gcc-riscv64-unknown-elf` or `gcc-riscv32-unknown-elf`
@@ -33,7 +50,7 @@ sudo apt-get install build-essential libelf-dev binutils-dev
 
 Testbench have been reworked a bit.
 
-## Changes Made to Project
+## Changes Made to original RISC-V Project
 
 ### To work with new verilator version:
 - Updated testbench to handle newer Verilator API requirements
@@ -68,8 +85,8 @@ The `run_c` folder contains a complete infrastructure for running C programs on 
   - `Makefile`: Complete build system for compilation and simulation
   - `run_c_program.sh`: Automated script to run C programs on both simulators
 
-### xv6_riscv_rv32 Folder
-The `xv6_riscv_rv32` folder contains a simplified xv6-like OS kernel that runs on the RISC-V simulation infrastructure:
+### xv6 Folder
+The `xv6` folder contains a simplified xv6-like OS kernel that runs on the RISC-V simulation infrastructure:
 
 - **Purpose**: Demonstrate OS-like functionality on the 32-bit RISC-V simulation platform
 - **Contents**:
@@ -89,7 +106,7 @@ The `xv6_riscv_rv32` folder contains a simplified xv6-like OS kernel that runs o
 
 #### xv6 Simulation Usage:
 ```bash
-cd xv6_riscv_rv32
+cd xv6
 ./run_xv6.sh
 ```
 
@@ -123,7 +140,7 @@ The `build/` directory contains all output files after running a simulation:
 - `program_sysc_wave.vcd`: VCD waveform with top-level signals
 - `program_verilator.vcd`: VCD waveform with internal processor signals (PC, registers, ALU, etc.)
 
-### xv6_riscv_rv32/build Directory
+### xv6/build Directory
 The `build/` directory in the xv6 folder contains all output files after running the OS simulation:
 
 - `xv6_kernel.elf`: RISC-V executable file for the xv6-like kernel

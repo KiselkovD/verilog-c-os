@@ -4,31 +4,31 @@ ENTRY(boot_vector)
 SECTIONS
 {
     . = 0x00002000;
-    
-    .text.boot : 
+
+    .text.boot :
     {
         *(.text.boot)
     }
-    
-    .text : 
+
+    .text :
     {
         *(.text.startup)
         *(.text)
         *(.text.*)
     }
-    
-    .rodata : 
+
+    .rodata :
     {
         *(.rodata)
         *(.rodata.*)
     }
-    
-    .data : 
+
+    .data :
     {
         *(.data)
         *(.data.*)
     }
-    
+
     .bss :
     {
         *(.bss)
