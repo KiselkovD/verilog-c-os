@@ -153,20 +153,42 @@ module memory_top (
 
   // Global wires and regs
   wire [7:0] w_read_data;  //This register holds data read from submodule that is currently selected
-  assign w_read_data = (w_bootloader_receive & w_bootloader_DV) ? w_bootloader_data_byte :
-                     (w_sdram_receive & w_sdram_DV) ? w_sdram_data_byte :
-                     (w_gpu_receive & w_gpu_DV) ? w_gpu_data_byte :
-                     (w_hex_receive & w_hex_DV) ? w_hex_data_byte :
-                     (w_gpio_receive & w_gpio_DV) ? w_gpio_data_byte :
-                     (w_ps2_receive & w_ps2_DV) ? w_ps2_data_byte :
-                     (w_test_receive & w_test_DV) ? w_test_data_byte :
-                     (w_sd_card_receive & w_sd_card_DV) ? w_sd_card_data_byte :
-                     (w_xv6_receive & w_xv6_DV) ? w_xv6_data_byte :
-                     (w_uart_receive & w_uart_DV) ? w_uart_data_byte :
-                     (w_plic_receive & w_plic_DV) ? w_plic_data_byte :
-                     (w_synth_32_receive & w_synth_32_DV) ? w_synth_32_data_byte :
-                     (w_synth_16_receive & w_synth_16_DV) ? w_synth_16_data_byte :
+  
+  // Store which memory region was selected for the current request
+  // This is needed because w_mar changes during multi-byte fetches
+  reg r_req_bootloader = 1'b0;
+  reg r_req_sdram = 1'b0;
+  reg r_req_gpu = 1'b0;
+  reg r_req_hex = 1'b0;
+  reg r_req_gpio = 1'b0;
+  reg r_req_ps2 = 1'b0;
+  reg r_req_test = 1'b0;
+  reg r_req_sd_card = 1'b0;
+  reg r_req_xv6 = 1'b0;
+  reg r_req_uart = 1'b0;
+  reg r_req_plic = 1'b0;
+  reg r_req_synth_32 = 1'b0;
+  reg r_req_synth_16 = 1'b0;
+  
+  // Use stored request flags instead of current DV signals for data selection
+  assign w_read_data = (w_bootloader_receive & r_req_bootloader) ? w_bootloader_data_byte :
+                     (w_sdram_receive & r_req_sdram) ? w_sdram_data_byte :
+                     (w_gpu_receive & r_req_gpu) ? w_gpu_data_byte :
+                     (w_hex_receive & r_req_hex) ? w_hex_data_byte :
+                     (w_gpio_receive & r_req_gpio) ? w_gpio_data_byte :
+                     (w_ps2_receive & r_req_ps2) ? w_ps2_data_byte :
+                     (w_test_receive & r_req_test) ? w_test_data_byte :
+                     (w_sd_card_receive & r_req_sd_card) ? w_sd_card_data_byte :
+                     (w_xv6_receive & r_req_xv6) ? w_xv6_data_byte :
+                     (w_uart_receive & r_req_uart) ? w_uart_data_byte :
+                     (w_plic_receive & r_req_plic) ? w_plic_data_byte :
+                     (w_synth_32_receive & r_req_synth_32) ? w_synth_32_data_byte :
+                     (w_synth_16_receive & r_req_synth_16) ? w_synth_16_data_byte :
                      8'h00;
+
+  // Drive output directly from r_mdr_out
+  assign o_bus_data = {r_mdr_out[3], r_mdr_out[2], r_mdr_out[1], r_mdr_out[0]};
+  assign o_bus_DV   = r_send;
 
   wire w_global_receive;
   assign w_global_receive = w_bootloader_receive |
@@ -201,6 +223,12 @@ module memory_top (
   reg sub_status = 1'b0;
   localparam integer TOSEND = 1'b0;
   localparam integer WAITINGFORRESPONSE = 1'b1;
+
+  // Flag to trigger r_send pulse after data is stable
+  reg r_trigger_send = 1'b0;
+  
+  // Track if current transaction is a READ (need to wait for response)
+  reg r_current_is_read = 1'b0;
 
   wire w_ps2_interrupt_DV;
   wire [7:0] w_ps2_interrupt_data;
@@ -416,23 +444,82 @@ module memory_top (
       r_mar <= i_bus_address;
       r_bhw <= i_bhw;
       r_write <= i_write_notread;
+      r_current_is_read <= !i_write_notread;  // Track if this is a READ
       status <= FETCHING;
       r_counter <= 2'b00;
+      r_trigger_send <= 1'b0;  // Reset trigger
+      // Note: Don't capture DV flags here - r_mar just changed, DV signals will update combinationally
+      // We'll capture them when the request is actually sent
+      
     end else if (status == FETCHING && r_bhw != 3'b000) begin
       if (sub_status == TOSEND) begin
         r_request  <= 1'b1;
+        // Capture which memory region is selected WHEN REQUEST IS SENT
+        // At this point r_mar is stable and DV signals are valid
+        r_req_bootloader <= w_bootloader_DV;
+        r_req_sdram <= w_sdram_DV;
+        r_req_gpu <= w_gpu_DV;
+        r_req_hex <= w_hex_DV;
+        r_req_gpio <= w_gpio_DV;
+        r_req_ps2 <= w_ps2_DV;
+        r_req_test <= w_test_DV;
+        r_req_sd_card <= w_sd_card_DV;
+        r_req_xv6 <= w_xv6_DV;
+        r_req_uart <= w_uart_DV;
+        r_req_plic <= w_plic_DV;
+        r_req_synth_32 <= w_synth_32_DV;
+        r_req_synth_16 <= w_synth_16_DV;
         sub_status <= WAITINGFORRESPONSE;
       end else if (sub_status == WAITINGFORRESPONSE && w_global_receive) begin
+        // Collect byte BEFORE incrementing counter
+        if (!w_write) r_mdr_out[r_counter] <= w_read_data;
+        
         r_mar <= r_mar + 1;
         r_counter <= r_counter + 1;
         sub_status <= TOSEND;
         r_bhw = r_bhw - 1;  // It is important that this is Blocking assignment
-        if (!w_write) r_mdr_out[r_counter] <= w_read_data;
+        
         if (r_bhw == 3'b000) begin
-          r_send <= 1'b1;
+          // All bytes received
           status <= WAITING;
+          // For READs, trigger send now that data is ready
+          // For WRITEs, keep send low (no data to sample)
+          if (r_current_is_read) begin
+            r_trigger_send <= 1'b1;
+          end
         end
       end
+    end
+
+    // Generate r_send pulse when data is ready (READs only)
+    if (r_trigger_send) begin
+      r_send <= 1'b1;
+      r_trigger_send <= 1'b0;
+    end
+    // Clear r_send when new request starts
+    if (status == WAITING && i_bus_DV) begin
+      r_send <= 1'b0;
+    end
+    
+    // Clear flags when new request starts
+    if (status == WAITING && i_bus_DV) begin
+      r_req_bootloader <= 1'b0;
+      r_req_sdram <= 1'b0;
+      r_req_gpu <= 1'b0;
+      r_req_hex <= 1'b0;
+      r_req_gpio <= 1'b0;
+      r_req_ps2 <= 1'b0;
+      r_req_test <= 1'b0;
+      r_req_sd_card <= 1'b0;
+      r_req_xv6 <= 1'b0;
+      r_req_uart <= 1'b0;
+      r_req_plic <= 1'b0;
+      r_req_synth_32 <= 1'b0;
+      r_req_synth_16 <= 1'b0;
+    end
+    // Keep r_send high until a new request comes in
+    if (status == WAITING && i_bus_DV) begin
+      r_send <= 1'b0;  // Clear when new request starts
     end
 
   end
