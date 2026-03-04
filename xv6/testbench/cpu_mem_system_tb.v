@@ -190,9 +190,18 @@ initial begin
   // Set up the MIF file for the synth memories
   #1;
 
+  $display("===========================================");
+  $display("XV6 OS Simulation with UART Output Logging");
+  $display("===========================================");
+  $display("UART output will be logged to: uart_output.log");
+  $display("Simulation will run for approximately 100 million cycles or until completion");
+  $display("VCD waveform output will be saved to: cpu_trace.vcd");
+  $display("===========================================");
+
   #1000000;  // Run for a long time to allow OS boot
 
   $display("Simulation ended at time %t", $time);
+  $display("UART output has been saved to uart_output.log");
   $finish;
 end
 

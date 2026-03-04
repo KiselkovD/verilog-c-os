@@ -23,9 +23,32 @@ PROJECT_ROOT="$SCRIPT_DIR"
 SIM_DIR="$PROJECT_ROOT/testbench"
 TOOLS_DIR="$PROJECT_ROOT/tools"
 
+# Parse command line arguments
+UART_OUTPUT=0
+for arg in "$@"; do
+    case $arg in
+        --uart)
+            UART_OUTPUT=1
+            shift
+            ;;
+        --help)
+            echo "Usage: $0 [options]"
+            echo "Options:"
+            echo "  --uart    Enable UART output logging to build/uart_output.log"
+            echo "  --help    Show this help message"
+            exit 0
+            ;;
+    esac
+done
+
 echo "Project Root: $PROJECT_ROOT"
 echo "Simulation Directory: $SIM_DIR"
 echo "Tools Directory: $TOOLS_DIR"
+if [ $UART_OUTPUT -eq 1 ]; then
+    echo "UART Output Logging: ENABLED"
+else
+    echo "UART Output Logging: DISABLED"
+fi
 
 # Check if required files exist
 if [ ! -f "$PROJECT_ROOT/misc/xv6.mif" ]; then
@@ -91,6 +114,9 @@ echo "Running the simulation..."
 echo "The CPU will execute the xv6 kernel starting at address 0x80000000"
 echo "Simulation will run for approximately 100 million cycles or until completion"
 echo "VCD waveform output will be saved to: testbench/cpu_trace.vcd"
+if [ $UART_OUTPUT -eq 1 ]; then
+    echo "UART output will be logged to: build/uart_output.log"
+fi
 echo ""
 
 ./cpu_with_mem
@@ -103,6 +129,18 @@ if [ -f "$SIM_DIR/cpu_trace.vcd" ]; then
     echo "VCD waveform file copied to: build/cpu_trace.vcd"
 fi
 
+# Copy UART output log file if it exists
+if [ -f "$SIM_DIR/uart_output.log" ]; then
+    cp "$SIM_DIR/uart_output.log" "$BUILD_DIR/uart_output.log"
+    echo "UART output log copied to: build/uart_output.log"
+    echo ""
+    echo "==========================================="
+    echo "UART Output from XV6 Kernel:"
+    echo "==========================================="
+    cat "$BUILD_DIR/uart_output.log"
+    echo "==========================================="
+fi
+
 if [ $? -eq 0 ]; then
     echo ""
     echo "==========================================="
@@ -112,6 +150,9 @@ if [ $? -eq 0 ]; then
     echo "VCD waveform file: testbench/cpu_trace.vcd"
     echo "VCD waveform file (copy): build/cpu_trace.vcd"
     echo "Use GTKWave to view: gtkwave build/cpu_trace.vcd"
+    if [ -f "$BUILD_DIR/uart_output.log" ]; then
+        echo "UART output log: build/uart_output.log"
+    fi
     echo "==========================================="
 else
     echo ""

@@ -9,7 +9,7 @@ module cache_altera #(
     input  wire [ADDR_WIDTH-1:0] i_address,
     input  wire                  i_write,
     input  wire                  i_request,
-    output reg [DATA_WIDTH-1:0]  o_data,
+    output wire [DATA_WIDTH-1:0] o_data,
     output reg                   o_data_DV
 );
 
@@ -19,21 +19,23 @@ module cache_altera #(
     // Initialize memory with file if specified
     initial begin
         if (INIT_FILE != "") begin
+            $display("CACHE_ALTERA (generic): Loading initialization file: %s", INIT_FILE);
             $readmemh(INIT_FILE, mem);
+        end else begin
+            $display("CACHE_ALTERA (generic): No initialization file specified");
         end
     end
 
+    // Combinational data output - data is available immediately
+    assign o_data = mem[i_address];
+
     always @(posedge i_clk) begin
+        o_data_DV <= 1'b0;
         if (i_request) begin
+            o_data_DV <= 1'b1;
             if (i_write) begin
                 mem[i_address] <= i_data;
-                o_data <= i_data;
-            end else begin
-                o_data <= mem[i_address];
             end
-            o_data_DV <= 1'b1;
-        end else begin
-            o_data_DV <= 1'b0;
         end
     end
 

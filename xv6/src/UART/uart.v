@@ -28,6 +28,9 @@ localparam integer ISR = 2;
 localparam integer LCR = 3;
 localparam integer LSR = 5;
 
+// UART output file handle for simulation logging
+integer uart_log_file;
+
 initial begin
   mem[0] = 8'b0;
   mem[1] = 8'b0;
@@ -35,6 +38,8 @@ initial begin
   mem[3] = 8'b0;
   mem[4] = 8'b0;
   mem[5] = 8'b0;
+  // Open UART log file for writing at simulation start
+  uart_log_file = $fopen("uart_output.log", "w");
 end
 
 always @(*) begin
@@ -72,6 +77,9 @@ always @(posedge i_clk) begin
         if (w_Tx_Active == 0) begin
           r_uart_DV <= 1'b1;
           $write("%c", i_data);
+          // Also write to UART log file
+          $fwrite(uart_log_file, "%c", i_data);
+          $fflush(uart_log_file);
         end
       end
       else begin
@@ -93,6 +101,12 @@ uart_tx #(434) m_uart_tx (
   .o_Tx_Done(w_Tx_Done)
 );
 
+// Close UART log file at end of simulation
+final begin
+  if (uart_log_file) begin
+    $fclose(uart_log_file);
+  end
+end
 
 endmodule
 
