@@ -144,3 +144,150 @@ After running simulations, the `build/` directory in each version will contain:
 ## License
 
 See [LICENSE](LICENSE) for licensing information.
+
+---
+ru
+---
+
+# ОС Verilog C для RISC-V
+
+Этот проект предоставляет полную инфраструктуру для запуска программ и операционных систем на языке C на 32-битной архитектуре RISC-V с поддержкой как моделирования набора инструкций (ISA), так и моделирования RTL на языке Verilog.
+
+## Структура проекта
+
+Проект организован в две отдельные версии, каждая со своей конфигурацией Docker и зависимостями:
+
+```
+verilog-c-os/
+├── README.md               # Этот файл - основная документация проекта
+├── LICENSE                 # Лицензия проекта
+├── .gitignore              # Шаблоны игнорирования Git
+│
+├── xv6_version/            # Версия ОС, подобная xv6
+│ ├── README.md             # Документация для версии xv6
+│ ├── docker-compose.yml    # Конфигурация Docker Compose для xv6
+│ ├── docker_image/         # Конфигурация образа Docker
+│ │ ├── Dockerfile          # Образ Docker со всеми зависимостями
+│ │ └── entrypoint.sh       # Скрипт точки входа контейнера
+│ ├── xv6/                  # Исходный код ядра, подобного xv6
+│ │ ├── xv6_kernel.c        # Упрощенное ядро ​​ОС, подобное xv6
+│ │ ├── startup.s           # Код запуска на ассемблере
+│ │ ├── link_script.ld      # Скрипт компоновщика
+│ │ ├── Makefile            # Система сборки
+│ │ ├── run_xv6.sh          # Скрипт запуска
+│ │ └── build/              # Каталог вывода сборки
+│ ├── core/riscv/           # Ядро процессора RISC-V (Verilog)
+│ ├── isa_sim/              # Симулятор архитектуры набора команд (модель C++)
+│ ├── top_tcm_axi/          # Тестовый стенд верхнего уровня с TCM
+│ └── doc/                  # Образы документации
+│
+└── run_c_version/          # Версия автономных программ на C
+    ├── README.md           # Документация для версии run_c
+    ├── docker-compose.yml  # Конфигурация Docker Compose для run_c
+    ├── docker_image/       # Конфигурация образа Docker
+    │ ├── Dockerfile        # Образ Docker со всеми зависимостями
+    │ └── entrypoint.sh     # Скрипт точки входа контейнера
+    ├── run_c/              # Инфраструктура программы на C
+    │ ├── run.c             # Пример программы на C
+    │ ├── lib/              # Вспомогательная библиотека
+    │ │ ├── startup.s       # Код запуска на ассемблере
+    │ │ ├── link_script.ld  # Скрипт компоновщика
+    │ │ └── utils.c         # Вспомогательные функции
+    │ ├── Makefile          # Система сборки
+    │ ├── run_c_program.sh  # Скрипт запуска для любой программы на C
+    │ └── build/            # Каталог вывода сборки
+    ├── core/riscv/         # Ядро процессора RISC-V (Verilog)
+    ├── isa_sim/            # Симулятор архитектуры набора команд (модель C++)
+    ├── top_tcm_axi/        # Тестовый стенд верхнего уровня с TCM
+    └── doc/                # Образы документации
+```
+
+## Быстрый старт
+
+### Запуск ОС, подобной xv6
+
+```bash
+cd xv6_version
+docker compose up xv6
+```
+
+### Запуск программ на C
+
+```bash
+cd run_c_version
+docker compose up run_c
+```
+
+Чтобы запустить пользовательскую программу на C:
+```bash
+cd run_c_version
+docker compose run --rm run_c bash -c "cd /workspace/run_c && ./run_c_program.sh your_program.c"
+```
+
+## Версии
+
+### xv6_version
+Эта версия реализует упрощенное ядро ​​операционной системы, подобное xv6, со следующими особенностями:
+- Управление таблицей процессов
+- Система распределения памяти
+- Базовая функциональность ОС
+- Совместимость с 32-битным моделированием RISC-V
+
+Подробную документацию см. в файле [xv6_version/README.md](xv6_version/README.md).
+
+### run_c_version
+Эта версия предоставляет инфраструктуру для запуска автономных программ на языке C со следующими особенностями:
+- Простая компиляция в формат RISC-V ELF
+- Поддержка пользовательских программ на языке C
+- Многократно используемая библиотека с кодом запуска и скриптами компоновщика
+- Примитивы управления моделированием
+
+Подробную документацию см. в файле [run_c_version/README.md](run_c_version/README.md).
+
+## Режимы моделирования
+
+Обе версии поддерживают два режима моделирования:
+
+1. **Симулятор ISA** — быстрая модель C++, которая быстро выполняет инструкции
+2. **Симулятор Verilog RTL** — моделирование аппаратного обеспечения с точностью до такта и использованием VCD-сигналов
+
+## Зависимости
+
+Все зависимости включены в образы Docker:
+- Инструментарий RISC-V GCC (riscv64-unknown-elf-gcc)
+- SystemC 2.3.3
+- Verilator
+- Инструменты сборки (make, g++, libelf-dev, binutils-dev)
+
+## Ручная установка (без Docker)
+
+Если вы предпочитаете работать без Docker, установите следующие зависимости:
+
+```bash
+# Установка инструментария RISC-V
+sudo apt-get install gcc-riscv64-unknown-elf
+
+# Установка SystemC
+wget https://github.com/accellera-official/systemc/releases/download/2.3.3/systemc-2.3.3.tar.gz
+tar -xzf systemc-2.3.3.tar.gz
+cd systemc-2.3.3
+mkdir build && cd build
+../configure --prefix=/usr/local/systemc-2.3.4
+make && sudo make install
+
+# Установка Verilator
+sudo apt-get install verilator
+
+# Установка зависимостей сборки
+sudo apt-get install build-essential libelf-dev binutils-dev
+```
+
+## Выходные файлы
+
+После запуска симуляций каталог `build/` в каждой версии будет содержать:
+- `.elf` - исполняемый файл RISC-V
+- `.disasm` - дизассемблированный код программы/ядра
+- `_isa.log` - Журнал симулятора ISA
+- `_verilog.log` - Журнал симулятора Verilog
+- `_sysc_wave.vcd` - Сигнал SystemC
+- `_verilator.vcd` - Сигнал Verilator с внутренним сигналом процессора
